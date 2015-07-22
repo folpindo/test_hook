@@ -64,11 +64,17 @@ class TicketUpdater:
             db = self.db
             try:
                 cursor = db.cursor();
-                cursor.execute("""SELECT oldvalue FROM ticket_change WHERE ticket=%s and field='comment' order by time desc limit 1""" % ticket_id)
+                cursor.execute("""SELECT max(oldvalue) FROM ticket_change WHERE ticket=%s and field='comment' order by time desc limit 1""" % ticket_id)
                 oldvalue = 1
                 comment_count = cursor.fetchall()
-                if comment_count:
-                   oldvalue = str(int(comment_count[0][0]) + 1)
+                if comment_count is not None and comment_count[0][0] is not None:
+                    last_comment = comment_count[0][0]
+                    #checking for format like 12.13, where 12 is the comment being replied and 13 the last comment which replied
+                    dotpos = last_comment.find('\.')
+                    if dotpos is not -1:
+                        oldvalue = str(int(last_comment[dotpos:])+1)
+                    else:
+                        oldvalue = str(int(comment_count[0][0]) + 1)
                 cursor.execute("""INSERT INTO ticket_change  (ticket,time,author,field, oldvalue, newvalue) VALUES(%s, %s, %s, %s, %s, %s)""",(ticket_id, change_time, author, field, oldvalue, newvalue))
                 db.commit()
             except Exception,e:
